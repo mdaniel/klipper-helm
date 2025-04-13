@@ -183,9 +183,14 @@ if [[ -n "${TIMEOUT}" ]]; then
 	TIMEOUT_ARG="--timeout ${TIMEOUT}"
 fi
 
+__registry_config_json="$HOME/.config/helm/registry/config.json"
+if [[ -e $HOME/.docker/config.json ]] && [[ ! -e "$__registry_config_json" ]]; then
+  mkdir -p "$(dirname "$__registry_config_json")"
+  cp "$HOME/.docker/config.json" "$__registry_config_json"
+fi
+
 helm_content_decode
 if [[ "$1" != "delete" ]]; then
 	helm_repo_init
 fi
 helm_update "$@"
-
