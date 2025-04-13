@@ -1,6 +1,7 @@
 name: release
 
 on:
+  workflow_dispatch:
   release:
     types:
       - created
@@ -15,48 +16,16 @@ jobs:
     permissions:
       contents: read
       packages: write
-      id-token: write # needed for the Vault authentication
+      id-token: write
 
     steps:
-      - name: Set DOCKERHUB_REPO
-        run: |
-          if [ "${{ github.repository_owner }}" == "k3s-io" ]; then
-            echo "DOCKERHUB_REPO=rancher/klipper-helm" >> $GITHUB_ENV
-          else
-            echo "DOCKERHUB_REPO=${{ secrets.DOCKER_USERNAME }}/klipper-helm" >> $GITHUB_ENV
-          fi
-
       - name: Docker source meta
         id: meta
         uses: docker/metadata-action@v5
         with:
           images: |
-            ${{ env.DOCKERHUB_REPO }}
             ${{ env.GHCR_REPO }}
 
-      - name: "Read Vault secrets"
-        if: github.repository_owner == 'k3s-io'
-        uses: rancher-eio/read-vault-secrets@main
-        with:
-          secrets: |
-            secret/data/github/repo/${{ github.repository }}/dockerhub/rancher/credentials username | DOCKER_USERNAME ;
-            secret/data/github/repo/${{ github.repository }}/dockerhub/rancher/credentials password | DOCKER_TOKEN ;
-    
-      - name: Login to DockerHub with Rancher Secrets
-        if: github.repository_owner == 'k3s-io'
-        uses: docker/login-action@v3
-        with:
-          username: ${{ env.DOCKER_USERNAME }}
-          password: ${{ env.DOCKER_TOKEN }}
-
-      # For forks, setup DockerHub login with GHA secrets
-      - name: Login to DockerHub with GHA Secrets
-        if: github.repository_owner != 'k3s-io'
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_TOKEN }}
-      
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v3
         with:
@@ -74,8 +43,10 @@ jobs:
         id: build
         uses: docker/build-push-action@v6
         with:
+          # build-args:
+          #  - BUILDDATE=${{ github.datetime.... }}
           platforms: linux/amd64
-          outputs: type=image,"name=${{ env.DOCKERHUB_REPO }},${{ env.GHCR_REPO }}",push-by-digest=true,name-canonical=true,push=true
+          outputs: type=image,"name=${{ env.GHCR_REPO }}",push-by-digest=true,name-canonical=true,push=true
 
       - name: Export digest
         run: |
@@ -103,52 +74,20 @@ jobs:
     permissions:
       contents: read
       packages: write
-      id-token: write # needed for the Vault authentication
+      id-token: write
 
     steps:
       - name: Replace / with -
         run: |
           platform=${{ matrix.platform }}
           echo "ARCH=${platform//\//-}" >> $GITHUB_ENV
-      
-      - name: Set DOCKERHUB_REPO
-        run: |
-          if [ "${{ github.repository_owner }}" == "k3s-io" ]; then
-            echo "DOCKERHUB_REPO=rancher/klipper-helm" >> $GITHUB_ENV
-          else
-            echo "DOCKERHUB_REPO=${{ secrets.DOCKER_USERNAME }}/klipper-helm" >> $GITHUB_ENV
-          fi
 
       - name: Docker source meta
         id: meta
         uses: docker/metadata-action@v5
         with:
           images: |
-            ${{ env.DOCKERHUB_REPO }}
             ${{ env.GHCR_REPO }}
-
-      - name: "Read Vault secrets"
-        if: github.repository_owner == 'k3s-io'
-        uses: rancher-eio/read-vault-secrets@main
-        with:
-          secrets: |
-            secret/data/github/repo/${{ github.repository }}/dockerhub/rancher/credentials username | DOCKER_USERNAME ;
-            secret/data/github/repo/${{ github.repository }}/dockerhub/rancher/credentials password | DOCKER_TOKEN ;
-        
-      - name: Login to DockerHub with Rancher Secrets
-        if: github.repository_owner == 'k3s-io'
-        uses: docker/login-action@v3
-        with:
-          username: ${{ env.DOCKER_USERNAME }}
-          password: ${{ env.DOCKER_TOKEN }}
-    
-      # For forks, setup DockerHub login with GHA secrets
-      - name: Login to DockerHub with GHA Secrets
-        if: github.repository_owner != 'k3s-io'
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_TOKEN }}
 
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v3
@@ -168,7 +107,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           platforms: linux/${{ matrix.platform }}
-          outputs: type=image,"name=${{ env.DOCKERHUB_REPO }},${{ env.GHCR_REPO }}",push-by-digest=true,name-canonical=true,push=true
+          outputs: type=image,"name=${{ env.GHCR_REPO }}",push-by-digest=true,name-canonical=true,push=true
 
       - name: Export digest
         run: |
@@ -193,7 +132,7 @@ jobs:
     permissions:
       contents: read
       packages: write
-      id-token: write # needed for the Vault authentication
+      id-token: write
 
     steps:
       - name: Download digests
@@ -202,38 +141,7 @@ jobs:
           path: ${{ runner.temp }}/digests
           pattern: digests-*
           merge-multiple: true
-      
-      - name: Set DOCKERHUB_REPO
-        run: |
-          if [ "${{ github.repository_owner }}" == "k3s-io" ]; then
-            echo "DOCKERHUB_REPO=rancher/klipper-helm" >> $GITHUB_ENV
-          else
-            echo "DOCKERHUB_REPO=${{ secrets.DOCKER_USERNAME }}/klipper-helm" >> $GITHUB_ENV
-          fi
 
-      - name: "Read Vault secrets"
-        if: github.repository_owner == 'k3s-io'
-        uses: rancher-eio/read-vault-secrets@main
-        with:
-          secrets: |
-            secret/data/github/repo/${{ github.repository }}/dockerhub/rancher/credentials username | DOCKER_USERNAME ;
-            secret/data/github/repo/${{ github.repository }}/dockerhub/rancher/credentials password | DOCKER_TOKEN ;
-      
-      - name: Login to DockerHub with Rancher Secrets
-        if: github.repository_owner == 'k3s-io'
-        uses: docker/login-action@v3
-        with:
-          username: ${{ env.DOCKER_USERNAME }}
-          password: ${{ env.DOCKER_TOKEN }}
-  
-      # For forks, setup DockerHub login with GHA secrets
-      - name: Login to DockerHub with GHA Secrets
-        if: github.repository_owner != 'k3s-io'
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_TOKEN }}
-  
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v3
         with:
@@ -249,18 +157,14 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: |
-            ${{ env.DOCKERHUB_REPO }}
             ${{ env.GHCR_REPO }}
 
       - name: Create manifest list and push
         working-directory: ${{ runner.temp }}/digests
         run: |
           docker buildx imagetools create $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
-            $(printf '${{ env.DOCKERHUB_REPO }}@sha256:%s ' *)
-          docker buildx imagetools create $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
             $(printf '${{ env.GHCR_REPO }}@sha256:%s ' *)
 
       - name: Inspect image
         run: |
-          docker buildx imagetools inspect ${{ env.DOCKERHUB_REPO }}:${{ steps.meta.outputs.version }}
           docker buildx imagetools inspect ${{ env.GHCR_REPO }}:${{ steps.meta.outputs.version }}
